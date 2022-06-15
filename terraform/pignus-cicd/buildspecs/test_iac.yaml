@@ -1,0 +1,12 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo "Install Brew and TfSec"
+      - apt-get update
+      - /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      - brew install tfsec
+  build:
+    commands:
+      - echo "Checking Pignus-Api-Secrets"
+      - tfsec terraform/pignus-api-secrets

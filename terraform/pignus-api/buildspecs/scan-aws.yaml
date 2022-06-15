@@ -1,0 +1,12 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - apt-get install jq
+  build:
+    commands:
+      - echo "Pignus Scan - ${IMAGE}:${TAG}"
+      - aws ecr describe-image-scan-findings --repository-name ${IMAGE} --image-id imageDigest=sha256:${DIGEST} --output=json| jq -c
+  post_build:
+    commands:
+      - echo "Pignus-Scan Complete"

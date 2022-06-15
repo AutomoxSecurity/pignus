@@ -1,0 +1,30 @@
+version: 0.2
+env:
+  paramater-store:
+    PIGNUS_API_KEY: PIGNUS_API_KEY
+phases:
+  pre_build:
+    commands:
+      - echo "Install Helm"
+      - curl https://baltocdn.com/helm/signing.asc | apt-key add -
+      - apt-get install apt-transport-https --yes
+      # - echo "deb https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
+      - apt-get update
+      # - apt-get install helm
+      - echo "Install pip requirements"
+      - pip install -r tests/requirements.txt
+      - pip install -r src/requirements.txt
+      - PIGNUS_PATH=$(pwd)
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo "Testing Pignus"
+      - cd src
+      - flake8
+      - python3 setup.py build
+      - python3 setup.py install
+      - cd ../tests/unit
+      - pytest -v
+      - pytest --cov=pignus
+      # - cd ../../helm/theia
+      # - helm lint

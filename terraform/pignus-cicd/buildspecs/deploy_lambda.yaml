@@ -1,0 +1,19 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - PIGNUS_VERSION=$(python3 src/pignus/version.py)
+      - echo "Deploying Pignus version ${PIGNUS_VERSION}"
+      - IMAGE_URL="${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE}:develop-${PIGNUS_VERSION}"
+      - echo $IMAGE_URL
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - apt-get install wget apt-transport-https gnupg
+      - docker pull ${IMAGE_URL}
+      - IMAGE_DIGEST=$(docker images ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE} --digests | grep "develop-${PIGNUS_VERSION}" | awk '{ print  $3}')
+  build:
+    commands:
+      - echo "Starting build"
+      - IMAGE_URL="${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE}@${IMAGE_DIGEST}"
+      - echo "Updating ${FUNCTION_NAME} to use ${IMAGE_URL}"
+      - aws lambda update-function-code --function-name ${FUNCTION_NAME} --image-uri="${IMAGE_URL}"

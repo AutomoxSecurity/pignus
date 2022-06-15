@@ -1,0 +1,6 @@
+version: 0.2
+phases:
+  build:
+    commands:
+      - aws lambda invoke --function-name ${FUCNTION_NAME} --region ${FUCNTION_REGION} --payload eyJhY3Rpb24iOiAibWlncmF0ZSJ9Cg== ./outfile.txt
+      - cat outfile.txt

@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 120
+ignore =
+    E712
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,i
+    *.AppleDouble*
+    pignus/debug.py
+    pignus/debug_env.py
+ 

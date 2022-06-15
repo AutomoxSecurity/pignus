@@ -1,0 +1,12 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - PIGNUS_VERSION=$(python3 src/pignus/version.py)
+      - echo "Building Pignus Version ${PIGNUS_VERSION}"
+  build:
+    commands:
+      - echo "Starting"
+      - docker pull ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/pignus/pignus:develop-${PIGNUS_VERSION}
+      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws

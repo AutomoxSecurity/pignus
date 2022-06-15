@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""Cli
+
+"""
+import random
+import sys
+
+from rich.console import Console
+from rich import print
+
+from pignus.utils.cli_arg_parser import CliArgParser
+from pignus.version import __version__
+from pignus import misc
+
+PIGNUS_LOGO = """
+    ____  _
+   / __ \(_)___ _____  __  _______
+  / /_/ / / __ `/ __ \/ / / / ___/
+ / ____/ / /_/ / / / / /_/ (__  )
+/_/   /_/\__, /_/ /_/\__,_/____/
+        /____/
+"""
+
+
+class Cli:
+    def __init__(self, supplanted_cli_args: dict = None):
+        self.supported_verbs = ["get", "create", "edit", "delete", "search"]
+        self.supported_subjects = [
+            "api-keys", "api-key", "clusters", "cluster", "cve", "details", "image", "images",
+            "image-build", "image-builds", "image-clusters", "operation", "operations", "option",
+            "options", "roles", "role-perms", "perms", "user", "users", "scan", "scans", "scanner",
+            "scanners"]
+        self.supported_options = {
+            "apply": ["--apply", "*type_bool"],
+            "debug": ["--debug", "-d"],
+            "field": ["--field", "-f"],
+            "help": ["--help", "-h"],
+            "limit": ["-l", "--limit"],
+            "page": ["-p", "--page"],
+            "raw": ["-raw", "-r"],
+            "role_id": ["--role-id", "--role_id"],
+            "api_key": ["--api-key"]
+        }
+        self.route_options = {
+
+            "edit option": {
+                "field": ["--field", "-f", "*type_dict"]
+            },
+
+            "get role-perms": {
+                "role_id": ["--role-id"]
+            },
+            "get scan": {
+                "id": ["--id", "-i"]
+            },
+            "get scans": {
+                "image_id": ["--image-id"],
+                "image_build_id": ["--image-build-id"]
+            },
+
+        }
+        self.cli_parser = CliArgParser(
+            raw_args=sys.argv[1:],
+            verbs=self.supported_verbs,
+            subjects=self.supported_subjects,
+            options=self.supported_options,
+        )
+        self.cli_parser.help_menu_text = """
+%(logo)s
+usage: pignus [-h] verb [subject] [-d] [-r] [-v]
+
+positional arguments:
+  verb                  Action to run. Currently supported, "%(verbs)s."
+  subject               "%(subjects)s"
+
+optional arguments:
+  -h, --help            Show this help message and exit.
+  -s, --show            Options for data to show.
+  -r, --raw             Display just raw return
+  -v, --verbose         Display extra output
+""" % {
+            "logo": PIGNUS_LOGO,
+            "verbs": '", "'.join(self.supported_verbs),
+            "subjects": '", "'.join(self.supported_subjects),
+        }
+        # If the script is actually being run from the CLI get the args
+        # if not supplanted_cli_args:
+        #     self.args = self.cli_parser.parse()
+
+        self.search_phrase = None
+        self.console = Console()
+
+    def help_menu(self):
+        print(PIGNUS_LOGO)
+
+    def start(self) -> bool:
+        """Header to display the logo and current version number of the client and the API."""
+        args = {
+            "logo": PIGNUS_LOGO,
+            "tagline": "[i]%s[/i]" % self._get_tagline(),
+            "version_server": "",
+            "version_client": __version__
+        }
+        # version_warning = ""
+        # if args["version_server"] != args["version_client"]:
+        #     version_warning = "[yellow bold]WARNING:[/yellow bold] Pignus client version "
+        #     version_warning += "(%s) does not match Pignus server version (%s)."
+        #     version_warning = version_warning % (
+        #         self.settings["client"]["version"],
+        #         self.settings["server"]["version"],
+        #     )
+
+        # args["tagline"] = version_warning
+
+        console = """
+%(logo)s
+    v%(version_client)s
+    %(tagline)s
+    """
+        self.console.print(console % args)
+
+        return True
+
+    def run(self):
+        """Primary router for the Pignus CLI, switching out to whatever verb we're told to."""
+        self.console = Console()
+        self.console.print()
+
+        self.start()
+        cli_subject = self.cli_parser.get_subject()
+
+        if cli_subject in ["api-key", "api-keys"]:
+            import_string = misc.import_string("cli_api_key")
+        elif cli_subject in ["cluster", "clusters"]:
+            import_string = misc.import_string("cli_cluster")
+        elif cli_subject in ["cve"]:
+            import_string = misc.import_string("cli_cve")
+        elif cli_subject in ["details"]:
+            import_string = misc.import_string("cli_details")
+        elif cli_subject in ["image", "images"]:
+            import_string = misc.import_string("cli_image")
+        elif cli_subject in ["image-build", "image-builds"]:
+            import_string = misc.import_string("cli_image_build")
+        elif cli_subject in ["image-clusters"]:
+            import_string = misc.import_string("cli_image_cluster")
+        elif cli_subject in ["operation", "operations"]:
+            import_string = misc.import_string("cli_operation")
+        elif cli_subject in ["option", "options"]:
+            import_string = misc.import_string("cli_option")
+        elif cli_subject in ["perm", "perms"]:
+            import_string = misc.import_string("cli_perm")
+        elif cli_subject in ["roles"]:
+            import_string = misc.import_string("cli_role")
+        elif cli_subject in ["role-perm", "role-perms"]:
+            import_string = misc.import_string("cli_role_perm")
+        elif cli_subject in ["scan", "scans"]:
+            import_string = misc.import_string("cli_scan")
+        elif cli_subject in ["scanner", "scanners"]:
+            import_string = misc.import_string("cli_scanner")
+        elif cli_subject in ["user", "users"]:
+            import_string = misc.import_string("cli_user")
+        else:
+            print('ERROR: Unknown verb "%s"' % cli_subject)
+            exit(1)
+
+        full_import = "pignus.cli.%s" % import_string["module"]
+        cli_module = misc.dynamic_import(full_import, the_class=import_string["class"])
+        cli_module(self.cli_parser).run()
+
+    def _generic_handle(self, name, response) -> bool:
+        if self.args["options"]["raw"]:
+            return True
+
+        self.console.print("\t-----------------\t")
+        if response.status_code >= 399:
+            self.console.print("\tStatus:\t\t[red]%s[/red]" % response.status_code)
+            self.console.print("\tMessage:\t[red]%s[/red]" % response.json()["message"])
+            self.console.print(
+                "\tRequest ID:\t%s" % response.headers["x-amzn-RequestId"]
+            )
+            print("\n")
+            exit(1)
+        else:
+            # self.console.print("\t%s:\t%s" % (name, self.search_phrase))
+            self.console.print("\tRequest:\t%s" % self.args["action"])
+            self.console.print("\tStatus:\t\t[green]%s[/green]" % response.status_code)
+            self.console.print("\tResponse:\t%s" % response.json()["message"])
+            print("\n")
+            return True
+
+    def _get_tagline(self):
+        taglines = [
+            "Now soy free",
+            "Hack The Planet",
+            "There is no system but GNU and Linux is one of it's kernels",
+            "The louder u r the less you hear",
+            "Oh, Yes. Little Bobby Tables, We Call Him",
+            "Remember, all I’m offering is the truth. Nothing more",
+            "I know what you're thinking, cause right now I'm thinking the same thing.",
+            "Look past the flesh. Look through the soft gelatin of these dull cow eyes and see your enemy!",
+            "BTW I run Arch",
+            "We have no names, man. No names. We are nameless!",
+            "Life is stranger than fiction sometimes.",
+            "Ignorance is bliss.",
+            "And Can You Offer Me Proof Of Your Existence? How Can You, When Neither Modern"
+            "Science Nor Philosophy Can Explain What Life Is?",
+            "I Guess Cyborgs Like Myself Have A Tendency To Be Paranoid About Our Origins.",
+            "All Things Change In A Dynamic Environment. Your Effort To Remain What You Are Is What Limits You.",
+            "There is no right and wrong. There's only fun and boring.",
+            "Remember, hacking is more than just a crime. It's a survival trait.",
+            "Ideally carbon neutral by %s" % str(random.randint(2021, 2021 * 10)),
+            "Container scanning for fun and profit",
+        ]
+        return taglines[random.randint(0, len(taglines) - 1)]
+
+    def _get_page(self) -> int:
+        """Get the -p or --page argument if one was submitted for collection operations."""
+        if "page" not in self.args["options"]:
+            return 1
+
+        page = self.args["options"]["page"]
+
+        if not page:
+            return 1
+
+        if not page.isdigit():
+            print("ERROR: -p, --page must be an integer")
+            exit(1)
+
+        return int(page)
+
+    def _interactive_bool(self, question: str) -> bool:
+        """Run an interactive check forcing the user to type "yes" in order to continue, unless the
+        --apply option was used.
+        """
+        if self.args["options"]["apply"]:
+            return True
+        print(question)
+        response = input("\t> ")
+        if response != "yes":
+            exit()
+        print("\n")
+        return True
+
+    def _get_roles(self) -> dict:
+        response_roles = self.api.roles_get()
+        response_json_roles = response_roles.json()
+        roles = self.api.objects(response_json_roles)
+        ret = {}
+        for role in roles:
+            ret[role.id] = role
+        return ret
+
+    def _handle_error(self, response, payload: dict = {}):
+        if self.args["options"]["debug"] and response.status_code > 399:
+            import ipdb
+            ipdb.set_trace()
+        if response.status_code == 404:
+            print("[red bold]ERORR[/red bold]: Not found.\n")
+            exit(1)
+        if response.status_code == 403:
+            print("[red bold]ERORR[/red bold]: Not authorized for %s\n" % response.url)
+            exit(1)
+        elif response.status_code > 399:
+            print("[red bold]ERORR[/red bold]: %s Could not fetch url %s from Pignus" % (
+                response.status_code, response.url))
+            if self.args["options"]["debug"]:
+                print("Debug")
+                print("\tStatus:\t%s" % response.status_code)
+                print("\tUrl:\t%s" % response.request.url)
+                print("\tMethod:\t%s" % response.request.method)
+                print("\t%s" % response.text)
+            exit(1)
+        return True
+
+
+if __name__ == "__main__":
+    Cli().run()
+
+# End File: automox/pignus/src/pignus/scripts/pignus

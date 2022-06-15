@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Pignus
+Entry point for the Pignus Cli, this will live in the users path on installation and be available
+as `pignus`.
+
+"""
+from pignus.cli import Cli
+
+
+if __name__ == "__main__":
+    Cli().run()
+
+# EndFile: automox/src/pignus/bin/pignus.py

@@ -1,0 +1,27 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo "Pignus-Sync"
+      - |
+        if [ $FROM_AWS_ACCOUNT ]; then
+          echo "Logging into ${FROM_AWS_ACCOUNT}"
+          aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${FROM_AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+          echo "Successfully logged into ${FROM_AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        fi
+      - |
+        if [ $TAG ]; then
+          PULL_QUERY=":${TAG}@sha256:${DIGEST}"
+          TAG=":${TAG}"
+        else
+          PULL_QUERY="@sha256:${DIGEST}"
+          TAG=":untagged"
+        fi
+  build:
+    commands:
+      - echo "Copy ${REPOSITORY}/${IMAGE}${PULL_QUERY} > ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE}${PULL_QUERY}"
+      - docker pull ${REPOSITORY}/${IMAGE}${PULL_QUERY}
+      - docker tag ${REPOSITORY}/${IMAGE}${PULL_QUERY} ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE}${TAG}
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - docker push ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE}${TAG}
+      - echo "Pignus-Sync-Container job completed"

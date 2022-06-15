@@ -1,0 +1,21 @@
+version: 0.2
+env:
+  parameter-store:
+    PIGNUS_API_KEY_DEV_ROLE_ADMIN: PIGNUS_API_KEY_DEV_ROLE_ADMIN
+    PIGNUS_API_KEY_DEV_ROLE_CLUSTER: PIGNUS_API_KEY_DEV_ROLE_CLUSTER
+phases:
+  pre_build:
+    commands:
+      - echo "Install pip requirements"
+      - pip install -r tests/requirements.txt
+      - pip install -r src/requirements.txt
+      - cd src/
+      - python3 setup.py build
+      - python3 setup.py install
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo "Regression Testing Pignus CLI"
+      - cd ../tests/regression/cli/
+      - ./get-models.sh
+      - ./get-collections.sh

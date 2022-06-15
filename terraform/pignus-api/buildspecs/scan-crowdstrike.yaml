@@ -1,0 +1,17 @@
+version: 0.2
+env:
+  parameter-store:
+    FALCON_CLIENT_ID: "FALCON_CLIENT_ID"
+    FALCON_CLIENT_SECRET: "FALCON_CLIENT_ID"
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - apt-get install wget apt-transport-https gnupg
+      - pip3 install docker requests
+      - git clone https://github.com/CrowdStrike/container-image-scan.git
+  build:
+    commands:
+      - python3 container-image-scan/cs_scanimage.py -r ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE} -t ${TAG} -c us-1
+      - echo "Pignus-Scan-Crowdstrike job completed"
